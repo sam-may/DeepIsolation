@@ -8,9 +8,9 @@ import h5py
 import model_tpu
 
 # Constants
-nTrain = 20000
-nEpochs = 10
+nEpochs = 100
 nBatch = 8192
+nTrain = nBatch * 2
 
 # Read features from hdf5 file
 f = h5py.File("test/features.hdf5", "r")
@@ -48,13 +48,17 @@ print(neutralHad_pf_timestep)
 # Structure NN #
 ################
 
-model = model_tpu.parallel(charged_pf_timestep, n_charged_pf_features, photon_pf_timestep, n_photon_pf_features, neutralHad_pf_timestep, n_neutralHad_pf_features, n_global_features)
+scale = float(sys.argv[1])
 
-strategy = tf.contrib.tpu.TPUDistributionStrategy(
-        tf.contrib.cluster_resolver.TPUClusterResolver(tpu='osg01')
-	)
+model = model_tpu.parallel(charged_pf_timestep, n_charged_pf_features, photon_pf_timestep, n_photon_pf_features, neutralHad_pf_timestep, n_neutralHad_pf_features, n_global_features, scale)
 
-model = tf.contrib.tpu.keras_to_tpu_model(model, strategy=strategy)
+use_tpu = False
+if use_tpu:
+	strategy = tf.contrib.tpu.TPUDistributionStrategy(
+		tf.contrib.cluster_resolver.TPUClusterResolver(tpu='osg01')
+		)
+
+	model = tf.contrib.tpu.keras_to_tpu_model(model, strategy=strategy)
 
 optimizer = tf.keras.optimizers.Adam()
 model.compile(optimizer = optimizer, loss = tf.keras.losses.binary_crossentropy, metrics = ['accuracy'])
